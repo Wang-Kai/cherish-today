@@ -52,7 +52,7 @@ docker pull mirrorgooglecontainers/etcd:3.3.10
 docker pull coredns/coredns:1.3.1
 docker pull mirrorgooglecontainers/pause:3.1
 
-# 重新 tag
+# 修改镜像地址
 docker tag mirrorgooglecontainers/kube-apiserver:v1.14.1 k8s.gcr.io/kube-apiserver:v1.14.1
 docker tag mirrorgooglecontainers/kube-controller-manager:v1.14.1 k8s.gcr.io/kube-controller-manager:v1.14.1
 docker tag mirrorgooglecontainers/kube-scheduler:v1.14.1 k8s.gcr.io/kube-scheduler:v1.14.1
@@ -67,7 +67,6 @@ docker tag mirrorgooglecontainers/pause:3.1 k8s.gcr.io/pause:3.1
 
 ```
 # 修改 yum 配置
-
 cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
 name=Kubernetes
@@ -80,19 +79,16 @@ gpgkey=http://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg
 EOF
 
 # 安装 kubeadm
-
 yum  install kubeadm  -y
 ```
 
 #### 1.2 关闭 SELinux & swap
 ```
 # 关闭 SELinux
-
 setenforce 0
 sed -i --follow-symlinks 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/sysconfig/selinux
 
 # 关闭 swap
-
 swapoff -a
 ```
 
@@ -175,9 +171,9 @@ kube-system   kube-scheduler-10-23-4-232                 1/1     Running   0    
 #### 2.3 设置 docker & kubelet 服务均为开机自启动
 
 同 Master Node
-#### 2.4 拉取相关镜像，并更改为要求的 tag (同 Master Node)
+#### 2.4 拉取相关镜像，并更改为指定的地址
 
-node节点加入master节点需要网络插件，所以需要以下额外镜像
+操作同 Master Node, 此外 worker 节点加入master节点需要网络插件，所以需要以下额外镜像
 
 ```
 sudo docker pull quay.io/calico/node:v3.3.0
