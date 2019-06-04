@@ -5,6 +5,7 @@
 ![](https://i.loli.net/2019/06/04/5cf62cff2c23d23859.png)
 
 - [申请 UES 服务](#申请-ues-服务)
+- [部署日志输出 Pod](#部署日志输出-pod)
 - [DaemonSet + Fluentd 方式](#daemonset--fluentd-方式)
 - [Sidecar + Fluentd 方式](#sidecar--fluentd-方式)
 - [DaemonSet + Filebeat 方式](#daemonset--filebeat-方式)
