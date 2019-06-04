@@ -2,7 +2,10 @@
 
 在 K8S 集群中收集日志是一个较为复杂的工作。首先采集的目标多，集群中可能会有多个服务，每个服务又有多个 Pod 副本，每个 Pod 中又可能有多个容器。此外是日志输出方式不固定，比如有的容器会把日志输出到标准的 `stdout` 和 `stderr`，有的容器会把日志输出到固定日志文件。本文将详尽阐述 `DaemonSet` 和 `Sidecar` 两种日志收集方式，力求简洁有效的完成日志收集工作。
 
-[TOC]
+- [申请 UES 服务](#申请-ues-服务)
+- [DaemonSet + Fluentd 方式](#daemonset--fluentd-方式)
+- [Sidecar + Fluentd 方式](#sidecar--fluentd-方式)
+- [DaemonSet + Filebeat 方式](daemonset--filebeat-方式)
 
 ### 申请 UES 服务
 
