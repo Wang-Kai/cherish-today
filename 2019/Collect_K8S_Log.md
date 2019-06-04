@@ -6,6 +6,7 @@
 - [DaemonSet + Fluentd 方式](#daemonset--fluentd-方式)
 - [Sidecar + Fluentd 方式](#sidecar--fluentd-方式)
 - [DaemonSet + Filebeat 方式](#daemonset--filebeat-方式)
+- [Sidecar + Filebeat 方式](#sidecar--filebeat-方式)
 
 ### 申请 UES 服务
 
