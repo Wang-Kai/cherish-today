@@ -2,6 +2,8 @@
 
 在 K8S 集群中收集日志是一个较为复杂的工作。首先采集的目标多，集群中可能会有多个服务，每个服务又有多个 Pod 副本，每个 Pod 中又可能有多个容器。此外是日志输出方式不固定，比如有的容器会把日志输出到标准的 `stdout` 和 `stderr`，有的容器会把日志输出到固定日志文件。本文将详尽阐述 `DaemonSet` 和 `Sidecar` 两种日志收集方式，力求简洁有效的完成日志收集工作。
 
+![](https://i.loli.net/2019/06/04/5cf62cff2c23d23859.png)
+
 - [申请 UES 服务](#申请-ues-服务)
 - [DaemonSet + Fluentd 方式](#daemonset--fluentd-方式)
 - [Sidecar + Fluentd 方式](#sidecar--fluentd-方式)
@@ -17,6 +19,34 @@
 填写我们需要部署的可用区、节点个数、ES版本、节点类型等信息，点击创建按钮后就创建好了我们要求的 ES 集群了。
 
 ![](http://wx3.sinaimg.cn/large/0060lm7Tly1g3dkgxvfs5j31j00riwic.jpg) 可以在控制台查看到 ES 集群的节点信息。
+
+### 部署日志输出 Pod
+
+```yaml
+# 日志输出示例 Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: timer-log
+spec:
+  containers:
+  - name: timer-app
+    image: uhub.service.ucloud.cn/wangkai/timer-log-to-std:latest
+```
+
+保存 yaml 内容到 `timer-log-to-std.yaml` , 然后执行 `kubectl create -f timer-log-to-std.yaml`。这样，我们就部署好了示例 Pod，其会每隔 5s 向标准输出中写日志。我们可以通过如下命令查看：
+
+```
+[root@10-10-59-40 ~]# kubectl get pod
+NAME                            READY   STATUS    RESTARTS   AGE
+timer-log                       1/1     Running   0          49s
+uk8s-kubectl-65dcc9576d-lfhc8   1/1     Running   0          3m17s
+[root@10-10-59-40 ~]# kubectl logs -f timer-log
+{"message":"I am 62 years old"}
+...
+```
+
+这个环节为我们接下来通过 `DaemonSet` 方式收集日志提供了日志来源。
 
 ### DaemonSet + Fluentd 方式
 
@@ -44,6 +74,7 @@ data:
 
     <match k8s.**>
       @type elasticsearch
+      # host 参数要填写所根据申请的 UES 节点 IP，多个节点可任选其一
       host  10.9.33.98
       logstash_format true
       port 9200
@@ -152,7 +183,17 @@ spec:
           mountPath: /var/lib/docker/containers
 ```
 
-修改上边 yaml 文件 host IP 为自己的 ES 集群 IP，然后将文件 Copy 到 K8S master 节点保存为文件 `fluentd-agent.yaml`，然后执行 `kubectl create -f fluentd-agent.yaml`。**此时，我们就完成了以 DaemonSet 方式通过 Fluentd 来收集 K8S 日志的所有工作。**
+修改上边 yaml 文件 host IP 为自己的 ES 集群 IP（多个节点 IP 任选其一即可），然后将文件 Copy 到 K8S master 节点保存为文件 `fluentd-agent.yaml`，然后执行 `kubectl create -f fluentd-agent.yaml`。**此时，我们就完成了以 DaemonSet 方式通过 Fluentd 来收集 K8S 日志的所有工作。**
+
+查看当前 namespace 运行的 Pod，我们分别有一个 `fluentd-collector` & `timer-log` 在运行，一个收集日志，一个向标准输出输出日志。
+
+```
+[root@10-10-59-40 ~]# kubectl get pod
+NAME                            READY   STATUS    RESTARTS   AGE
+fluentd-collector-82w5l         1/1     Running   0          49s
+timer-log                       1/1     Running   0          49s
+uk8s-kubectl-65dcc9576d-lfhc8   1/1     Running   0          3m17s
+```
 
 ##### 2. 通过 kibana 查看日志
 
@@ -195,6 +236,7 @@ data:
 
     <match k8s.**>
       @type elasticsearch
+      # host 参数要填写所根据申请的 UES 节点 IP，多个节点可任选其一
       host  10.9.33.98
       logstash_format true
       port 9200
@@ -241,6 +283,15 @@ spec:
 
 更换配置中 Host IP 为自己的集群 IP，然后 Copy 内容到 `sidecar-demo.yaml`，执行 `kubectl create -f sidecar-demo.yaml` **即可完成对 `timer-app` 服务的日志收集。**
 
+执行 `kubectl get pod` 查看当前 Pod，我们发现 `timer-log-sidecar` READY 属性是 2/2，说明该 Pod 中运行了两个容器，两个容器均运行成功，这两个容器就是我们在 Pod 中配置的 `timer-app` & `fluentd-instance`。
+
+```
+[root@10-10-59-40 ~]# kubectl get pod
+NAME                            READY   STATUS    RESTARTS   AGE
+timer-log-sidecar               2/2     Running   0          4s
+uk8s-kubectl-65dcc9576d-lfhc8   1/1     Running   0          63m
+```
+
 ##### 2. 通过 kibana 查看日志收集结果
 
 ![](http://wx1.sinaimg.cn/large/0060lm7Tly1g3eqz48wjij31a90u0n1w.jpg)
@@ -258,7 +309,6 @@ sidecar 日志采集方式可以采集程序输出到文件中的日志，并且
 [filebeat](https://www.elastic.co/cn/products/beats/filebeat) 是一款轻量日志采集器。[官方有提供 K8S 集群日志收集方案](https://www.elastic.co/guide/en/beats/filebeat/current/running-on-kubernetes.html)，采用的是 DaemonSet 方式。采用官方提供的配置，我们只需要修改 ES 节点地址即可。
 
 ```yaml
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -435,6 +485,17 @@ metadata:
 
 ES 默认账号密码为 `elastic` 、`changeme` , 如果 ES 集群没有明确指定账号密码，则不需要修改这两个参数。**执行 `kubectl create -f filebeat-daemonset.yaml` 即可完成 filebeat 收集 K8S 日志的全流程。**
 
+这个环节创建的 filebeat Pod 在 kube-system namespace 下，查看 Pod 得到如下结果。Daemonset 服务会自动采集我们在最初部署的 timer-log Pod 的日志。
+
+```
+[root@10-10-59-40 ~]# kubectl get pod -n kube-system
+NAME                              READY   STATUS    RESTARTS   AGE
+coredns-5ddbbd4c5d-qbfdh          1/1     Running   0          86m
+coredns-5ddbbd4c5d-wcfks          1/1     Running   0          86m
+filebeat-76cf6                    1/1     Running   0          2m51s
+metrics-server-784f95b7f5-7krlz   1/1     Running   0          86m
+```
+
 ##### 2. 使用 kibana 查看日志
 
 ![](http://wx4.sinaimg.cn/large/0060lm7Tly1g3gt8vgeppj315q0u0q8c.jpg)
@@ -504,12 +565,19 @@ spec:
   volumes:
   - name: demo-dir
     emptyDir: {}
-  - name: filebeat-config
-    configMap:
-      name: sidecar-filebeat-config
 ```
 
 该示例中，我们使用 `timer-log` Container，其将会创建 `/data/test.log`, 然后定时向文件输出日志。保存 yaml 内容到 `filebeat-sidecar.yaml`, 然后执行 `kubectl create -f filebeat-sidecar.yaml` 。
+
+```
+[root@10-10-59-40 ~]# kubectl get pod
+NAME                            READY   STATUS    RESTARTS   AGE
+filebeat-sidecar-demo           2/2     Running   0          56s
+uk8s-kubectl-65dcc9576d-lfhc8   1/1     Running   0          103m
+```
+
+检查 Pod 发现，`timer-app` & `filebeat` 两个 container 均运行正常。
+
 
 ##### 3. 使用 kibana 查看日志
 
