@@ -9,7 +9,7 @@
 >- CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
 >- CMD command param1 param2 (shell form)
 >
-There can only be one CMD instruction in a Dockerfile. If you list more than one CMD then only the last CMD will take effect.
+>There can only be one CMD instruction in a Dockerfile. If you list more than one CMD then only the last CMD will take effect.
 
 >The main purpose of a CMD is to provide defaults for an executing container. These defaults can include an executable, or they can omit the executable, in which case you must specify an ENTRYPOINT instruction as well.
 
@@ -22,7 +22,7 @@ There can only be one CMD instruction in a Dockerfile. If you list more than one
 ### ENTRYPOINT 
 
 >ENTRYPOINT has two forms:
-
+>
 >- ENTRYPOINT ["executable", "param1", "param2"] (exec form, preferred)
 >- ENTRYPOINT command param1 param2 (shell form)
 >An ENTRYPOINT allows you to configure a container that will run as an executable.
